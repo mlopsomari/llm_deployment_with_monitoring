@@ -1,0 +1,3 @@
+model:
+  name: "Qwen/Qwen2.5-0.5B-Instruct"
+  uri: "hf://Qwen/Qwen2.5-0.5B-Instruct"

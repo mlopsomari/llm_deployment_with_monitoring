@@ -1,0 +1,18 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: qwen2.5-0.5b-instruct-vllm-metrics
+  namespace: kserve
+  labels:
+    release: prom
+spec:
+  namespaceSelector:
+    matchNames:
+      - kserve
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: llminferenceservice-workload
+  endpoints:
+    - targetPort: 8000
+      path: /metrics
+      interval: 30s

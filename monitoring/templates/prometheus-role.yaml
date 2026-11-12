@@ -1,0 +1,38 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: qwen2.5-0.5b-model-utilization
+  namespace: default
+  labels:
+    release: prom
+spec:
+  groups:
+    - name: model_utilization
+      interval: 30s
+      rules:
+        # Existing rules
+        - record: model:prompt_tokens_per_sec
+          expr: rate(vllm:prompt_tokens_total[5m])
+
+        - record: model:generation_tokens_per_sec
+          expr: rate(vllm:generation_tokens_total[5m])
+
+        # 1. Prefill MFU (Compute-Bound Phase)
+        - record: model:prefill_mfu
+          expr: (model:prompt_tokens_per_sec * 2 * 494000000) / 65e12
+
+        # 2. Decode MFU (Memory-Bound Phase - expected to be low)
+        - record: model:decode_mfu
+          expr: (model:generation_tokens_per_sec * 2 * 494000000) / 65e12
+
+        # 3. Overall Combined MFU
+        - record: model:mfu
+          expr: ((model:prompt_tokens_per_sec + model:generation_tokens_per_sec) * 2 * 494000000) / 65e12
+
+        # 4. Average Time Per Output Token (TPOT)
+        - record: model:avg_tpot_seconds
+          expr: rate(vllm:inter_token_latency_seconds_sum[5m]) / rate(vllm:inter_token_latency_seconds_count[5m])
+
+        # 5. Decode MBU (The primary bottleneck metric for generation)
+        - record: model:decode_mbu
+          expr: ((494000000 * 2) / model:avg_tpot_seconds) / 300e9
