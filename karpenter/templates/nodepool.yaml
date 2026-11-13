@@ -1,0 +1,60 @@
+apiVersion: karpenter.sh/v1
+kind: NodePool
+metadata:
+  name: g4dn-xlarge-llm-pool
+spec:
+  template:
+    metadata:
+      labels:
+        workload-type: llm-inference
+    spec:
+      taints:
+        - key: workload
+          value: llm-inference
+          effect: NoSchedule
+      requirements:
+        - key: node.kubernetes.io/instance-type
+          operator: In
+          values: ["g4dn.xlarge", "g4dn.2xlarge"]
+        - key: karpenter.sh/capacity-type
+          operator: In
+          values: ["on-demand"]
+        - key: kubernetes.io/arch
+          operator: In
+          values: ["amd64"]
+        - key: kubernetes.io/os
+          operator: In
+          values: ["linux"]
+      nodeClassRef:
+        group: karpenter.k8s.aws
+        kind: EC2NodeClass
+        name: default
+      expireAfter: 4h
+  limits:
+    cpu: "16"
+    memory: 64Gi
+    nvidia.com/gpu: "4"
+  disruption:
+    consolidationPolicy: WhenEmptyOrUnderutilized
+    consolidateAfter: 1m
+---
+apiVersion: karpenter.k8s.aws/v1
+kind: EC2NodeClass
+metadata:
+  name: default
+spec:
+  role: "KarpenterNodeRole-${CLUSTER_NAME}"
+  amiSelectorTerms:
+    - alias: "al2023@${ALIAS_VERSION}"
+  subnetSelectorTerms:
+    - tags:
+        karpenter.sh/discovery: "${CLUSTER_NAME}"
+  securityGroupSelectorTerms:
+    - tags:
+        karpenter.sh/discovery: "${CLUSTER_NAME}"
+  blockDeviceMappings:
+    - deviceName: /dev/xvda
+      ebs:
+        volumeSize: 100Gi
+        volumeType: gp3
+        deleteOnTermination: true
